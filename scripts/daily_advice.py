@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-daily_advice.py - 每日 19:00 调用 claude -p 分析 KB，生成次日买卖建议。
+daily_advice.py - 每日 19:00 调用 claude -p 分析 KB + 实时行情，生成次日 TOP 10 买卖清单。
 
-输入：knowledge_base/{evergreen.md, recent.md, summary.md, knowledge_base.json}
-输出：~/Documents/stock-helper/daily/YYYY-MM-DD.md（次日日期）
-依赖：claude CLI 在 PATH 中
+流程：
+1. 跑 fetch_quotes.py 拉 30 只候选股最新行情（含 52 周高低、距高低 %）
+2. 读 evergreen.md + recent.md + summary.md + 最近 50 篇文章标题
+3. 拼 prompt → claude -p → markdown
+4. 写到 ~/Documents/stock-helper/daily/YYYY-MM-DD.md
 """
 
 import json
@@ -15,11 +17,30 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 KB = ROOT / "knowledge_base"
+SCRIPTS = ROOT / "scripts"
 OUT_DIR = Path.home() / "Documents" / "stock-helper" / "daily"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CLAUDE_BIN = "claude"
 CLAUDE_TIMEOUT_SEC = 600
+
+
+def fetch_quotes() -> str:
+    """跑 fetch_quotes.py 拉实时行情，返回 JSON 字符串。"""
+    try:
+        result = subprocess.run(
+            ["python3", str(SCRIPTS / "fetch_quotes.py")],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode != 0:
+            sys.stderr.write(f"fetch_quotes.py exit {result.returncode}\n{result.stderr[:500]}\n")
+            return ""
+        return result.stdout.strip()
+    except Exception as e:
+        sys.stderr.write(f"fetch_quotes.py 调用失败: {e}\n")
+        return ""
 
 
 def load_kb_inputs() -> dict:
@@ -43,85 +64,100 @@ def load_kb_inputs() -> dict:
     return inputs
 
 
-def build_prompt(today_str: str, tomorrow_str: str, inputs: dict) -> str:
-    return f"""你是基于刘备教授投资哲学的国际级别投资顾问。今天是 {today_str}，请基于下方知识库为 **{tomorrow_str}（次日）** 生成完整的"次日买卖建议"。
+def build_prompt(today_str: str, tomorrow_str: str, inputs: dict, quotes_json: str) -> str:
+    return f"""你是基于刘备教授投资哲学的国际级别投资顾问。今天是 {today_str}，请基于下方"知识库+实时行情"为 **{tomorrow_str}（次日）** 生成 **TOP 10 操作清单**。
 
-# 输入：永恒方法论（evergreen.md）
+# 输入 1：30 只候选股最新行情（含 52 周高低、距高低%、PE）
+
+```json
+{quotes_json}
+```
+
+# 输入 2：永恒方法论（evergreen.md）
 
 {inputs['evergreen.md']}
 
 ---
 
-# 输入：近期市场观点（recent.md，距今最新）
+# 输入 3：近期市场观点（recent.md，距今最新）
 
 {inputs['recent.md']}
 
 ---
 
-# 输入：知识库摘要（summary.md，全量统计）
+# 输入 4：知识库摘要（summary.md）
 
 {inputs['summary.md']}
 
 ---
 
-# 输入：最近 50 篇文章标题（带 level 标签）
+# 输入 5：最近 50 篇文章标题（带 level 标签）
 
 {inputs['recent_titles']}
 
 ---
 
-# 任务
+# 输出要求（严格遵守，否则视为失败）
 
-输出严格遵循下面的 markdown 模板，**所有判断都必须可追溯到上面输入**，引用 recent.md 内容时标 `[基于 YYYY-MM-DD]`，引用 30 天前历史观点标 `[原文 YYYY-MM-DD]`：
+按下面模板输出 markdown。**TOP 10 表是核心，其它部分都尽量精简。**
 
 ```
-# 次日交易建议 · {tomorrow_str}
+# 次日 TOP 10 操作清单 · {tomorrow_str}
 
-> 基于刘备教授投资体系，{today_str} 19:00 自动生成。本建议不构成投资建议，仅供学习参考。
+> {today_str} 收盘后自动生成 | 不构成投资建议
 
-## 一、市场状态判断
-- A 股：[牛/熊/震荡，简述当前阶段]
-- 港股：[同上]
-- 美股 / 中概：[同上]
-- 时机评级：⭐☆☆☆☆ 至 ★★★★★（简述依据）
+## 一、市场温度（一句话）
 
-## 二、关注名单（次日重点观察）
+[当前市场状态 + 时机评级 ★★★☆☆，60 字以内]
 
-| 标的 | 方向 | 买入区间 | 止损位 | 仓位建议 | 持有周期 | 核心逻辑 |
-|------|------|----------|--------|----------|----------|----------|
-| 股票A | 加仓/减仓/持有/回避 | xxx-xxx | xxx | xx% | 短/中/长 | 一句话 |
+## 二、TOP 10 关注名单
 
-（3-5 个标的，覆盖 recent.md 提到的高频股 / 板块龙头；不要给出具体价位预测，区间需结合方法论判断）
+| # | 标的 | 当前价 | 买入价 | 目标价 | 止损价 | 仓位 | 周期 | 评级 | 核心逻辑（≤20字） |
+|---|------|--------|--------|--------|--------|------|------|------|-------------------|
+| 1 | 招商银行(600036) | 37.00 | 35.5-36.5 | 42.0 | 33.0 | 10% | 中长 | 买入 | 银行分红龙头 |
+| 2 | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
-## 三、板块倾向
-- ✅ 看好：[板块] —— [理由 + 来源]
-- ⚠️ 谨慎：[板块] —— [理由 + 来源]
-- ❌ 回避：[板块] —— [理由 + 来源]
+排序原则（优先级递减）：
+1. **强买入**：recent.md 重点正面提及 + 行情在合理区间（不在 52 周高位）
+2. **逢回调买**：recent.md 看好但当前已涨至 52 周高位附近（距高 < 5%）
+3. **持有观察**：recent.md 持有偏多但需信号确认
+4. **回避减仓**：recent.md 提示风险或题材见顶
 
-## 四、仓位建议
-- 当前建议总仓位：xx%
-- 现金仓位：xx%
-- 单一行业上限：xx%
+填表规则：
+- 当前价 / 距 52w 高 / 距 52w 低：直接从行情 JSON 读，不能凭空编
+- 买入价区间：对 A股 / 港股 龙头通常取「当前价 -3% ~ -8%」做安全垫；对距 52w 高 > 15% 的可取「当前价 ±2%」
+- 目标价：基于历史 PE / 52w 高 / 行业空间合理推断；不要写"翻倍""500元"这种激进数字
+- 止损价：投机仓 = 买入价 × 0.9（-10%）；投资仓 = 买入价 × 0.8（-20%）
+- 仓位：单票 ≤ 20%，10 只总和约 60-80%；高分红价值股 10-15%，科技/题材 5-10%
+- 评级用：「强买入 / 逢回调买 / 持有 / 减仓 / 回避」5 档
+- 至少包含：2 只高分红价值股 + 3 只港股互联网 + 2 只 A股科技 + 1-2 只周期/底仓 + 1 只回避对照
 
-## 五、风险点（必读）
-1. [系统性 / 地缘 / 流动性等]
-2. [行业风险]
-3. [个股风险]
+## 三、板块倾向（3 行内）
 
-## 六、与历史观点的冲突
-[若 recent.md 末节命中冲突，主动列出"历史 X → 近期 Y"]
+- ✅ [板块 + 一句理由]
+- ⚠️ [板块 + 一句理由]
+- ❌ [板块 + 一句理由]
 
-## 七、纪律提醒
+## 四、风险提示（3 条内）
+
+1. [风险点]
+2. [风险点]
+3. [风险点]
+
+## 五、纪律提醒
+
 - 永不满仓，单票 ≤ 20%，单一行业 ≤ 30%
 - 投机仓 -10% 无条件止损，投资仓 -20% 可再判断
-- 买在无人问津时，卖在人声鼎沸处
+- 买在无人问津时，卖在人声鼎沸处 —— 距 52w 高 < 3% 的不追
 ```
 
 强制要求：
-1. **任何"现在能买/现在该卖"的判断必须来自 recent.md**；若 recent.md 缺数据，明确说"无最新数据，建议跳过该标的"
-2. 关注名单不少于 3 个、不多于 5 个；不要追当下最热的题材（牛三阶段非热点滞涨原则）
-3. 不预测具体涨幅，不保证盈利
-4. 直接输出 markdown 内容（不要包在 ```markdown 代码块里）
+1. TOP 10 的每一行**当前价必须从行情 JSON 实读**，不能瞎写或留空
+2. recent.md 看不到该股观点时，标"无最新观点"且评级降到「持有」或「回避」
+3. 买入价 / 目标价 / 止损价必须给具体数字（区间 OK），不能写"待定"
+4. 不要预测具体涨幅 / 不保证盈利
+5. **不要超过 1500 字**——这是给用户上班路上看的简报，不是研究报告
+6. 直接输出 markdown 内容（不要包在 ```markdown 代码块里）
 """
 
 
@@ -150,12 +186,20 @@ def main() -> int:
     today = now.strftime("%Y-%m-%d")
     tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
 
-    print(f"📊 生成 {tomorrow} 次日建议（{today} {now.strftime('%H:%M:%S')}）")
+    print(f"📊 生成 {tomorrow} TOP 10（{today} {now.strftime('%H:%M:%S')}）", file=sys.stderr)
 
+    print("📈 [1/3] 拉取候选股实时行情…", file=sys.stderr)
+    quotes_json = fetch_quotes()
+    if not quotes_json:
+        print("❌ 行情拉取失败，终止", file=sys.stderr)
+        return 1
+
+    print("📚 [2/3] 读取知识库…", file=sys.stderr)
     inputs = load_kb_inputs()
-    prompt = build_prompt(today, tomorrow, inputs)
-    print(f"📝 prompt 长度: {len(prompt)} 字符，调用 claude -p…")
+    prompt = build_prompt(today, tomorrow, inputs, quotes_json)
+    print(f"📝 prompt 长度: {len(prompt)} 字符", file=sys.stderr)
 
+    print("🤖 [3/3] 调用 claude -p…", file=sys.stderr)
     advice = call_claude(prompt)
     if not advice:
         print("❌ claude 输出为空，跳过写盘", file=sys.stderr)
@@ -163,7 +207,7 @@ def main() -> int:
 
     out_path = OUT_DIR / f"{tomorrow}.md"
     out_path.write_text(advice, encoding="utf-8")
-    print(f"✅ 已写入 {out_path}（{len(advice)} 字符）")
+    print(f"✅ 已写入 {out_path}（{len(advice)} 字符）", file=sys.stderr)
     print(out_path)  # 标准输出最后一行 = 文件路径，便于 shell 串联
     return 0
 

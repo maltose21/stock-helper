@@ -1,0 +1,46 @@
+# stock-helper 候选股票池
+# 30 只刘备教授高频提及的标的，每日 daily_advice.py 拉行情后从中精选 TOP 10
+# 新浪行情代码格式：A 股 sh/sz + 6 位代码；港股 rt_hk + 5 位代码
+
+stocks:
+  # ── 高分红价值股（稳健底仓） ──
+  - {code: sh600036, name: 招商银行,    sector: 银行,        type: A股}
+  - {code: sh601088, name: 中国神华,    sector: 煤炭,        type: A股}
+  - {code: sh601225, name: 陕西煤业,    sector: 煤炭,        type: A股}
+  - {code: sh600900, name: 长江电力,    sector: 水电,        type: A股}
+  - {code: sh600377, name: 宁沪高速,    sector: 高速,        type: A股}
+  - {code: sz000333, name: 美的集团,    sector: 家电,        type: A股}
+  - {code: sh600519, name: 贵州茅台,    sector: 消费,        type: A股}
+  - {code: sh000858, name: 五粮液,      sector: 消费,        type: A股}
+
+  # ── 港股互联网/AI 重定价 ──
+  - {code: rt_hk00700, name: 腾讯控股,  sector: 互联网,      type: 港股}
+  - {code: rt_hk09988, name: 阿里巴巴,  sector: 互联网,      type: 港股}
+  - {code: rt_hk03690, name: 美团,      sector: 互联网,      type: 港股}
+  - {code: rt_hk09618, name: 京东集团,  sector: 互联网,      type: 港股}
+  - {code: rt_hk01024, name: 快手,      sector: 互联网,      type: 港股}
+  - {code: rt_hk09888, name: 百度,      sector: 互联网,      type: 港股}
+  - {code: rt_hk01810, name: 小米集团,  sector: 消费电子,    type: 港股}
+  - {code: rt_hk00981, name: 中芯国际,  sector: 半导体,      type: 港股}
+  - {code: rt_hk01211, name: 比亚迪,    sector: 新能源车,    type: 港股}
+  - {code: rt_hk02015, name: 理想汽车,  sector: 新能源车,    type: 港股}
+  - {code: rt_hk09866, name: 蔚来,      sector: 新能源车,    type: 港股}
+
+  # ── A 股科技 / 半导体 ──
+  - {code: sh688256, name: 寒武纪,      sector: 半导体,      type: A股}
+  - {code: sh688981, name: 中芯国际A,   sector: 半导体,      type: A股}
+  - {code: sz002594, name: 比亚迪A,     sector: 新能源车,    type: A股}
+  - {code: sh688041, name: 海光信息,    sector: 算力,        type: A股}
+  - {code: sz300750, name: 宁德时代,    sector: 新能源,      type: A股}
+
+  # ── 周期反转 ──
+  - {code: sz000725, name: 京东方A,     sector: 面板,        type: A股}
+  - {code: sz002714, name: 牧原股份,    sector: 猪周期,      type: A股}
+
+  # ── 平台 / 出行 ──
+  - {code: rt_hk09961, name: 携程集团,  sector: 出行,        type: 港股}
+  - {code: rt_hk09626, name: 哔哩哔哩,  sector: 互联网,      type: 港股}
+
+  # ── 指数（市场温度参考） ──
+  - {code: sh000001, name: 上证指数,    sector: 指数,        type: 指数}
+  - {code: sz399006, name: 创业板指,    sector: 指数,        type: 指数}
