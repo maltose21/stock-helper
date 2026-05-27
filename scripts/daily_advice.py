@@ -63,12 +63,12 @@ def load_top30() -> dict:
     return json.loads(TOP30.read_text(encoding="utf-8"))
 
 
-def format_top30_table(top30: dict) -> str:
-    """把 TOP 30 转成精简表格喂给 claude（避免 JSON 噪声）。"""
-    lines = ["| # | 代码 | 名称 | 板块 | 现价 | 涨跌% | 成交亿 | PE | 距52w高% | 距52w低% | 评分 | 评分细节 |",
-             "|---|------|------|------|------|-------|--------|-----|----------|----------|------|---------|"]
-    for i, s in enumerate(top30.get("top", []), 1):
-        d = s.get("score_detail", {})
+def format_candidates_table(rows: list, label: str) -> str:
+    """格式化候选表，分主线/价值两组喂给 claude。"""
+    lines = [f"\n### {label}（{len(rows)} 只）\n",
+             "| # | 代码 | 名称 | 板块 | 现价 | 涨跌% | 成交亿 | PE | 距52w高% | 距52w低% | 评分 |",
+             "|---|------|------|------|------|-------|--------|-----|----------|----------|------|"]
+    for i, s in enumerate(rows, 1):
         pe = s.get("pe")
         pe_str = f"{pe:.1f}" if pe else "-"
         h52 = s.get("high_52w")
@@ -77,27 +77,42 @@ def format_top30_table(top30: dict) -> str:
         pct_h = f"{(cur - h52) / h52 * 100:+.1f}" if h52 else "-"
         pct_l = f"{(cur - l52) / l52 * 100:+.1f}" if l52 else "-"
         amt = s.get("amount", 0) / 1e8
-        detail = f"L{d.get('liquidity', 0):.0f}+S{d.get('sector', 0):.0f}+M{d.get('momentum', 0)}+Sa{d.get('safety', 0)}"
+        sector = s.get("sector_class") or s.get("sector", "?")
         lines.append(
-            f"| {i} | {s['code']} | {s.get('name', '?')} | {s.get('sector', '?')} | "
-            f"{cur:.2f} | {s.get('change_pct', 0):+.2f} | {amt:.1f} | {pe_str} | {pct_h} | {pct_l} | {s['score']:.1f} | {detail} |"
+            f"| {i} | {s['code']} | {s.get('name', '?')} | {sector} | "
+            f"{cur:.2f} | {s.get('change_pct', 0):+.2f} | {amt:.1f} | {pe_str} | {pct_h} | {pct_l} | {s['score']:.1f} |"
         )
     return "\n".join(lines)
 
 
 def build_prompt(today_str: str, tomorrow_str: str, inputs: dict, top30: dict) -> str:
-    top30_table = format_top30_table(top30)
-    hot_sectors = ", ".join(f"{k}({v:.1f})" for k, v in
-                            sorted(top30.get("hot_sectors", {}).items(), key=lambda x: -x[1])[:6])
-    return f"""你是基于刘备教授投资哲学的国际级别投资顾问。今天是 {today_str}，请基于「全市场策略评分 TOP 30 候选 + 知识库」为 **{tomorrow_str}（次日）** 生成 **TOP 10 操作清单**。
+    main_line_table = format_candidates_table(top30.get("top_main_line", []), "今日主线龙头候选")
+    value_table = format_candidates_table(top30.get("top_value", []), "价值股压舱候选")
+    main_lines = top30.get("main_line_sectors", [])
+    main_line_detail = top30.get("main_line_detail", {})
+    if main_lines:
+        ml_summary = ", ".join(
+            f"{s}({main_line_detail.get(s, {}).get('count', '?')}只共涨,板块成交{main_line_detail.get(s, {}).get('total_amount_yi', '?')}亿)"
+            for s in main_lines
+        )
+    else:
+        ml_summary = "(今日无明显主线，市场分化或缩量)"
 
-# 输入 1：今日全市场扫描后的 TOP 30 候选股（已通过策略评分排序）
+    return f"""你是基于刘备教授投资哲学的国际级别投资顾问。今天是 {today_str}，请基于「全市场动态主线扫描 + 价值压舱 + 知识库」为 **{tomorrow_str}（次日）** 生成 **TOP 10 操作清单**。
+
+# 输入 1：今日全市场动态扫描结果
 
 扫描范围：{top30.get('universe_size', '?')} 只 A 股 + 港股核心
-热点板块（recent 高频）：{hot_sectors}
-评分维度：L=流动性 / S=板块匹配 / M=资金动能 / Sa=安全边际，满分各 25
+**今日动态识别的主线**：{ml_summary}
 
-{top30_table}
+候选分两组：
+- **主线龙头候选**：今日板块共振涨 > 4% 的成员中按成交额排序的龙头
+- **价值股压舱候选**：高分红/低估值蓝筹（银行/水电/煤炭/互联网平台等）
+
+评分维度：L=流动性 / S=板块匹配 / M=资金动能 / Sa=安全边际
+{main_line_table}
+
+{value_table}
 
 # 输入 2：永恒方法论（evergreen.md）
 
@@ -143,11 +158,12 @@ def build_prompt(today_str: str, tomorrow_str: str, inputs: dict, top30: dict) -
 | 1 | 招商银行(600036) | 37.00 | 35.5-36.5 | 42.0 | 33.3 | 10% | 中长 | 强买入 | 银行分红龙头 |
 | 2 | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
-筛选规则：
-1. **必须从上面 TOP 30 候选中挑** —— 这是策略+流动性+主线匹配后的结果，不要选清单外的标的
-2. 不要全选第 1-10 —— 综合考虑分散度，板块上限 3 只（避免 10 只全是港股互联网）
-3. 优先选 recent.md 有明确正面观点 + 评分 ≥ 75 + 距 52w 高 > 5% 的（不追高）
-4. 至少包含一只回避 / 减仓评级的标的（从 TOP 30 评分较低的里选 + recent 提示风险的）
+筛选规则（**强制遵守**）：
+1. **必须 6 只来自「今日主线龙头候选」+ 4 只来自「价值股压舱候选」** —— 不允许越界，也不要选清单外的标的
+2. 主线 6 只内部要求：板块上限 4 只（如半导体板块若有龙头富集，最多选 4 只，剩余 2 只必须换板块）；优先选评分 ≥ 75 且涨幅在 4-9% 区间的（不追涨停板，因次日难以接力）
+3. 价值 4 只要求：板块分散（银行/水电/煤炭/互联网平台 各 1 只为佳），优先距 52w 高 > 10% 的（有安全边际）
+4. 至少包含一只「减仓 / 回避」评级的标的：从主线候选里选距 52w 高 < 3% 且涨停的（已透支），或 recent.md 提示风险的标的
+5. 主线龙头默认评级「强买入 / 逢回调买」；价值股默认「持有 / 逢回调买」
 
 填表规则：
 - 当前价：直接从上表读
