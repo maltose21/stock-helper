@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-daily_advice.py - 每日 19:00 调用 claude -p 分析 KB + 实时行情，生成次日 TOP 10 买卖清单。
+daily_advice.py - 每日 19:00 全市场扫描 → 评分 → TOP 30 → claude 选 TOP 10。
 
 流程：
-1. 跑 fetch_quotes.py 拉 30 只候选股最新行情（含 52 周高低、距高低 %）
-2. 读 evergreen.md + recent.md + summary.md + 最近 50 篇文章标题
-3. 拼 prompt → claude -p → markdown
-4. 写到 ~/Documents/stock-helper/daily/YYYY-MM-DD.md
+1. fetch_universe.py: 拉 5300+ 只 A 股 + 50 只港股核心快照 (~35s)
+2. score_universe.py: 多维评分 → TOP 30 → top30_candidates.json
+3. 读 evergreen.md + recent.md + summary.md + 最近 50 篇文章标题
+4. 拼 prompt → claude -p → TOP 10 markdown
+5. 写到 ~/Documents/stock-helper/daily/YYYY-MM-DD.md
 """
 
 import json
@@ -18,29 +19,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 KB = ROOT / "knowledge_base"
 SCRIPTS = ROOT / "scripts"
+TOP30 = KB / "top30_candidates.json"
 OUT_DIR = Path.home() / "Documents" / "stock-helper" / "daily"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CLAUDE_BIN = "claude"
-CLAUDE_TIMEOUT_SEC = 600
+CLAUDE_TIMEOUT_SEC = 900
 
 
-def fetch_quotes() -> str:
-    """跑 fetch_quotes.py 拉实时行情，返回 JSON 字符串。"""
-    try:
-        result = subprocess.run(
-            ["python3", str(SCRIPTS / "fetch_quotes.py")],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if result.returncode != 0:
-            sys.stderr.write(f"fetch_quotes.py exit {result.returncode}\n{result.stderr[:500]}\n")
-            return ""
-        return result.stdout.strip()
-    except Exception as e:
-        sys.stderr.write(f"fetch_quotes.py 调用失败: {e}\n")
-        return ""
+def run(name: str, script: Path, timeout: int) -> bool:
+    print(f"⚙️  执行 {name}…", file=sys.stderr)
+    r = subprocess.run(["python3", str(script)], timeout=timeout)
+    if r.returncode != 0:
+        print(f"❌ {name} 失败 (exit={r.returncode})", file=sys.stderr)
+        return False
+    return True
 
 
 def load_kb_inputs() -> dict:
@@ -64,14 +57,47 @@ def load_kb_inputs() -> dict:
     return inputs
 
 
-def build_prompt(today_str: str, tomorrow_str: str, inputs: dict, quotes_json: str) -> str:
-    return f"""你是基于刘备教授投资哲学的国际级别投资顾问。今天是 {today_str}，请基于下方"知识库+实时行情"为 **{tomorrow_str}（次日）** 生成 **TOP 10 操作清单**。
+def load_top30() -> dict:
+    if not TOP30.exists():
+        raise FileNotFoundError(f"缺少 {TOP30}")
+    return json.loads(TOP30.read_text(encoding="utf-8"))
 
-# 输入 1：30 只候选股最新行情（含 52 周高低、距高低%、PE）
 
-```json
-{quotes_json}
-```
+def format_top30_table(top30: dict) -> str:
+    """把 TOP 30 转成精简表格喂给 claude（避免 JSON 噪声）。"""
+    lines = ["| # | 代码 | 名称 | 板块 | 现价 | 涨跌% | 成交亿 | PE | 距52w高% | 距52w低% | 评分 | 评分细节 |",
+             "|---|------|------|------|------|-------|--------|-----|----------|----------|------|---------|"]
+    for i, s in enumerate(top30.get("top", []), 1):
+        d = s.get("score_detail", {})
+        pe = s.get("pe")
+        pe_str = f"{pe:.1f}" if pe else "-"
+        h52 = s.get("high_52w")
+        l52 = s.get("low_52w")
+        cur = s.get("current", 0)
+        pct_h = f"{(cur - h52) / h52 * 100:+.1f}" if h52 else "-"
+        pct_l = f"{(cur - l52) / l52 * 100:+.1f}" if l52 else "-"
+        amt = s.get("amount", 0) / 1e8
+        detail = f"L{d.get('liquidity', 0):.0f}+S{d.get('sector', 0):.0f}+M{d.get('momentum', 0)}+Sa{d.get('safety', 0)}"
+        lines.append(
+            f"| {i} | {s['code']} | {s.get('name', '?')} | {s.get('sector', '?')} | "
+            f"{cur:.2f} | {s.get('change_pct', 0):+.2f} | {amt:.1f} | {pe_str} | {pct_h} | {pct_l} | {s['score']:.1f} | {detail} |"
+        )
+    return "\n".join(lines)
+
+
+def build_prompt(today_str: str, tomorrow_str: str, inputs: dict, top30: dict) -> str:
+    top30_table = format_top30_table(top30)
+    hot_sectors = ", ".join(f"{k}({v:.1f})" for k, v in
+                            sorted(top30.get("hot_sectors", {}).items(), key=lambda x: -x[1])[:6])
+    return f"""你是基于刘备教授投资哲学的国际级别投资顾问。今天是 {today_str}，请基于「全市场策略评分 TOP 30 候选 + 知识库」为 **{tomorrow_str}（次日）** 生成 **TOP 10 操作清单**。
+
+# 输入 1：今日全市场扫描后的 TOP 30 候选股（已通过策略评分排序）
+
+扫描范围：{top30.get('universe_size', '?')} 只 A 股 + 港股核心
+热点板块（recent 高频）：{hot_sectors}
+评分维度：L=流动性 / S=板块匹配 / M=资金动能 / Sa=安全边际，满分各 25
+
+{top30_table}
 
 # 输入 2：永恒方法论（evergreen.md）
 
@@ -97,52 +123,54 @@ def build_prompt(today_str: str, tomorrow_str: str, inputs: dict, quotes_json: s
 
 ---
 
-# 输出要求（严格遵守，否则视为失败）
+# 输出要求（严格遵守）
 
 按下面模板输出 markdown。**TOP 10 表是核心，其它部分都尽量精简。**
 
 ```
 # 次日 TOP 10 操作清单 · {tomorrow_str}
 
-> {today_str} 收盘后自动生成 | 不构成投资建议
+> {today_str} 收盘后自动生成 | 扫描 {top30.get('universe_size', '?')} 只全市场 | 不构成投资建议
 
 ## 一、市场温度（一句话）
 
-[当前市场状态 + 时机评级 ★★★☆☆，60 字以内]
+[当前市场状态 + 时机评级 ★★★☆☆，60 字以内，引用 recent.md]
 
 ## 二、TOP 10 关注名单
 
 | # | 标的 | 当前价 | 买入价 | 目标价 | 止损价 | 仓位 | 周期 | 评级 | 核心逻辑（≤20字） |
 |---|------|--------|--------|--------|--------|------|------|------|-------------------|
-| 1 | 招商银行(600036) | 37.00 | 35.5-36.5 | 42.0 | 33.0 | 10% | 中长 | 买入 | 银行分红龙头 |
+| 1 | 招商银行(600036) | 37.00 | 35.5-36.5 | 42.0 | 33.3 | 10% | 中长 | 强买入 | 银行分红龙头 |
 | 2 | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
-排序原则（优先级递减）：
-1. **强买入**：recent.md 重点正面提及 + 行情在合理区间（不在 52 周高位）
-2. **逢回调买**：recent.md 看好但当前已涨至 52 周高位附近（距高 < 5%）
-3. **持有观察**：recent.md 持有偏多但需信号确认
-4. **回避减仓**：recent.md 提示风险或题材见顶
+筛选规则：
+1. **必须从上面 TOP 30 候选中挑** —— 这是策略+流动性+主线匹配后的结果，不要选清单外的标的
+2. 不要全选第 1-10 —— 综合考虑分散度，板块上限 3 只（避免 10 只全是港股互联网）
+3. 优先选 recent.md 有明确正面观点 + 评分 ≥ 75 + 距 52w 高 > 5% 的（不追高）
+4. 至少包含一只回避 / 减仓评级的标的（从 TOP 30 评分较低的里选 + recent 提示风险的）
 
 填表规则：
-- 当前价 / 距 52w 高 / 距 52w 低：直接从行情 JSON 读，不能凭空编
-- 买入价区间：对 A股 / 港股 龙头通常取「当前价 -3% ~ -8%」做安全垫；对距 52w 高 > 15% 的可取「当前价 ±2%」
-- 目标价：基于历史 PE / 52w 高 / 行业空间合理推断；不要写"翻倍""500元"这种激进数字
+- 当前价：直接从上表读
+- 买入价区间：
+  · 距 52w 高 > 15% 的（左侧）：当前价 ±2%（可入）
+  · 距 52w 高 5-15% 的：当前价 -3% ~ -8%（等回调）
+  · 距 52w 高 < 5% 的：写"暂不追"或当前价 -10% 以下
+- 目标价：基于 PE 修复 / 52w 高 / 行业空间合理推断（不要写翻倍）
 - 止损价：投机仓 = 买入价 × 0.9（-10%）；投资仓 = 买入价 × 0.8（-20%）
 - 仓位：单票 ≤ 20%，10 只总和约 60-80%；高分红价值股 10-15%，科技/题材 5-10%
-- 评级用：「强买入 / 逢回调买 / 持有 / 减仓 / 回避」5 档
-- 至少包含：2 只高分红价值股 + 3 只港股互联网 + 2 只 A股科技 + 1-2 只周期/底仓 + 1 只回避对照
+- 评级：「强买入 / 逢回调买 / 持有 / 减仓 / 回避」5 档
 
 ## 三、板块倾向（3 行内）
 
-- ✅ [板块 + 一句理由]
+- ✅ [板块 + 一句理由 + 引用 recent.md 日期]
 - ⚠️ [板块 + 一句理由]
 - ❌ [板块 + 一句理由]
 
 ## 四、风险提示（3 条内）
 
-1. [风险点]
-2. [风险点]
-3. [风险点]
+1. [系统/地缘/流动性风险]
+2. [行业风险]
+3. [跨周期风险，含历史观点冲突]
 
 ## 五、纪律提醒
 
@@ -152,12 +180,10 @@ def build_prompt(today_str: str, tomorrow_str: str, inputs: dict, quotes_json: s
 ```
 
 强制要求：
-1. TOP 10 的每一行**当前价必须从行情 JSON 实读**，不能瞎写或留空
-2. recent.md 看不到该股观点时，标"无最新观点"且评级降到「持有」或「回避」
-3. 买入价 / 目标价 / 止损价必须给具体数字（区间 OK），不能写"待定"
-4. 不要预测具体涨幅 / 不保证盈利
-5. **不要超过 1500 字**——这是给用户上班路上看的简报，不是研究报告
-6. 直接输出 markdown 内容（不要包在 ```markdown 代码块里）
+1. 不要超过 1800 字
+2. 不预测具体涨幅 / 不保证盈利
+3. 不要包在 ```markdown 代码块里，直接输出 markdown
+4. 引用 recent.md 内容标 `[基于 YYYY-MM-DD]`
 """
 
 
@@ -174,7 +200,7 @@ def call_claude(prompt: str) -> str:
             return ""
         return result.stdout.strip()
     except FileNotFoundError:
-        sys.stderr.write(f"未找到 {CLAUDE_BIN}，请确认 claude CLI 在 PATH 中\n")
+        sys.stderr.write(f"未找到 {CLAUDE_BIN}\n")
         return ""
     except subprocess.TimeoutExpired:
         sys.stderr.write(f"claude 调用超时 {CLAUDE_TIMEOUT_SEC}s\n")
@@ -188,27 +214,27 @@ def main() -> int:
 
     print(f"📊 生成 {tomorrow} TOP 10（{today} {now.strftime('%H:%M:%S')}）", file=sys.stderr)
 
-    print("📈 [1/3] 拉取候选股实时行情…", file=sys.stderr)
-    quotes_json = fetch_quotes()
-    if not quotes_json:
-        print("❌ 行情拉取失败，终止", file=sys.stderr)
+    if not run("[1/4] fetch_universe.py", SCRIPTS / "fetch_universe.py", timeout=180):
+        return 1
+    if not run("[2/4] score_universe.py", SCRIPTS / "score_universe.py", timeout=60):
         return 1
 
-    print("📚 [2/3] 读取知识库…", file=sys.stderr)
+    print("📚 [3/4] 读取知识库 + TOP30…", file=sys.stderr)
     inputs = load_kb_inputs()
-    prompt = build_prompt(today, tomorrow, inputs, quotes_json)
+    top30 = load_top30()
+    prompt = build_prompt(today, tomorrow, inputs, top30)
     print(f"📝 prompt 长度: {len(prompt)} 字符", file=sys.stderr)
 
-    print("🤖 [3/3] 调用 claude -p…", file=sys.stderr)
+    print("🤖 [4/4] 调用 claude -p…", file=sys.stderr)
     advice = call_claude(prompt)
     if not advice:
-        print("❌ claude 输出为空，跳过写盘", file=sys.stderr)
+        print("❌ claude 输出为空", file=sys.stderr)
         return 1
 
     out_path = OUT_DIR / f"{tomorrow}.md"
     out_path.write_text(advice, encoding="utf-8")
-    print(f"✅ 已写入 {out_path}（{len(advice)} 字符）", file=sys.stderr)
-    print(out_path)  # 标准输出最后一行 = 文件路径，便于 shell 串联
+    print(f"✅ 写入 {out_path}（{len(advice)} 字符）", file=sys.stderr)
+    print(out_path)  # 标准输出最后一行 = 文件路径
     return 0
 
 

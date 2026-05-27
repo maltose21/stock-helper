@@ -3,3 +3,5 @@ __pycache__/
 .DS_Store
 *.log
 .wechatbot_token
+knowledge_base/universe_quotes.json
+knowledge_base/top30_candidates.json
