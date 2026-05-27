@@ -1,0 +1,49 @@
+# 新闻源配置 - stock-helper 自动更新管道
+# 每个 source 由 fetch_news.py 通过 WebFetch 拉取
+# 失败容忍：单个 source 挂掉只跳过、不阻塞整体
+
+sources:
+  - name: liubei_rss
+    url: https://www.fugay.com/index.xml
+    type: rss
+    description: 刘备教授 fugay.com RSS（Hugo 静态站，含完整历史）
+    parser: rss_items
+    enabled: true
+
+  - name: csrc
+    url: http://www.csrc.gov.cn/csrc/c100028/zfxxgk_zdgk.shtml
+    type: webfetch
+    description: 证监会重点公开信息
+    fetch_prompt: 提取页面上最近 7 天的公告标题、日期、链接、摘要。只要正式监管公告，过滤行业新闻。返回 markdown 列表格式。
+    enabled: true
+
+  - name: sse_announcements
+    url: http://www.sse.com.cn/disclosure/listedinfo/announcement/
+    type: webfetch
+    description: 上交所上市公司公告
+    fetch_prompt: 提取页面上最近 3 天的重大公告标题、公司、日期。只要 ST/退市/重大重组/分红等关键事件。
+    enabled: true
+
+  - name: szse_announcements
+    url: http://www.szse.cn/disclosure/listed/notice/index.html
+    type: webfetch
+    description: 深交所上市公司公告
+    fetch_prompt: 提取页面上最近 3 天的重大公告标题、公司、日期。只要 ST/退市/重大重组/分红等关键事件。
+    enabled: true
+
+  - name: cls_telegraph
+    url: https://www.cls.cn/telegraph
+    type: webfetch
+    description: 财联社电报（实时财经新闻）
+    fetch_prompt: 提取最近 24 小时的重要财经新闻标题（按标星/重要性排序），每条一行。重点关注政策、监管、行业大事，跳过个股短线波动。
+    enabled: true
+
+  - name: eastmoney_hot
+    url: https://data.eastmoney.com/zjlx/list.html
+    type: webfetch
+    description: 东方财富资金流向
+    fetch_prompt: 提取主力资金净流入 TOP 10 行业和个股，反映当日资金动向。
+    enabled: false  # 默认关闭，需要时再启用
+
+# AI 板块通过 aihot skill 拉取，不在此配置中
+# 手工 inbox 通过 ~/.claude/skills/stock-helper/knowledge_base/inbox/ 目录
