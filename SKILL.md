@@ -776,6 +776,9 @@ Step 5: 确认与跟进
 | `knowledge_base/meta.json` | 最后刷新时间，启动自检读取 |
 | `knowledge_base/inbox/` | 用户手工塞重大事件 markdown |
 | `scripts/refresh.sh` | 自动更新管道入口（cron + 手动） |
+| `scripts/daily_advice.py` | 调 `claude -p` 生成次日交易建议（19:00 cron 调用） |
+| `scripts/push_wechat.py` | 推送到个人微信（wechatbot-webhook 协议） |
+| `scripts/daily_run.sh` | 编排 daily_advice + push_wechat |
 | `claude` CLI（in PATH） | distill_recent.py 通过 `claude -p` 蒸馏 recent.md |
 | `agents/selector/` | 选股专家 Agent |
 | `agents/timing/` | 时机专家 Agent |
@@ -832,6 +835,24 @@ crontab -e
 bash ~/.claude/skills/stock-helper/scripts/refresh.sh
 ```
 
+### 11.6 每日 19:00 次日建议推送（独立管道）
+
+- 18:30 cron 已跑完 `refresh.sh` → KB 是最新的
+- 19:00 cron 跑 `daily_run.sh`：
+  1. `daily_advice.py` 调 `claude -p` 读 evergreen + recent + summary + 最近 50 篇文章标题，生成次日交易建议 markdown 写到 `~/Documents/stock-helper/daily/YYYY-MM-DD.md`
+  2. `push_wechat.py` 按 wechatbot-webhook 协议（`POST {WECHATBOT_URL}?token={WECHATBOT_TOKEN}` body `{"to": "<昵称>", "data": {"content": "..."}}`）推送到个人微信，长文按 1800 字切段
+- 必填环境变量（在 cron 用户的 shell 配置里 export）：
+  ```
+  WECHATBOT_URL=http://<your-host>:3001/webhook/msg/v2
+  WECHATBOT_TOKEN=<your-token>
+  WECHATBOT_TO=<昵称或群名>
+  ```
+- 试跑：`WECHATBOT_DRY_RUN=1 bash scripts/daily_run.sh`（只生成不推送）
+- cron 行（工作日 19:00；周末跳过）：
+  ```
+  0 19 * * 1-5 bash ~/.claude/skills/stock-helper/scripts/daily_run.sh >> ~/.claude/skills/stock-helper/daily.log 2>&1
+  ```
+
 ---
 
 ## 12. Architecture
@@ -859,7 +880,10 @@ stock-helper/
     ├── fetch_liubei.py            # fugay.com RSS 拉取
     ├── fetch_news.py              # 财经门户 / 监管公告抓取
     ├── distill_recent.py          # claude -p 蒸馏 recent.md
-    └── refresh.sh                 # 编排脚本（cron 入口）
+    ├── refresh.sh                 # 18:30 编排脚本（KB 自动更新）
+    ├── daily_advice.py            # 调 claude -p 生成次日建议
+    ├── push_wechat.py             # wechatbot-webhook 推送
+    └── daily_run.sh               # 19:00 编排脚本（生成+推送）
 ```
 
 ---
