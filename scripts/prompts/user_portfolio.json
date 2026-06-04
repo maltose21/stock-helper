@@ -1,0 +1,71 @@
+{
+  "updated_at": "2026-06-03",
+  "account": "普通交易 尾号729",
+  "total_assets": 115756.91,
+  "available_cash": 31989.91,
+  "position_pct": 72.36,
+  "holdings": [
+    {
+      "code": "512400",
+      "name": "有色金属ETF南方",
+      "market": "SH",
+      "shares": 5000,
+      "cost": 2.236,
+      "current": 2.032,
+      "pnl_pct": -9.12
+    },
+    {
+      "code": "513180",
+      "name": "恒生科技ETF华夏",
+      "market": "SH",
+      "shares": 10000,
+      "cost": 0.8285,
+      "current": 0.641,
+      "pnl_pct": -22.63
+    },
+    {
+      "code": "588790",
+      "name": "科创AI ETF博时",
+      "market": "SH",
+      "shares": 10000,
+      "cost": 0.8315,
+      "current": 0.927,
+      "pnl_pct": 11.49
+    },
+    {
+      "code": "600760",
+      "name": "中航沈飞",
+      "market": "SH",
+      "shares": 200,
+      "cost": 54.2106,
+      "current": 42.41,
+      "pnl_pct": -21.77
+    },
+    {
+      "code": "600941",
+      "name": "中国移动",
+      "market": "SH",
+      "shares": 400,
+      "cost": 104.289,
+      "current": 100.16,
+      "pnl_pct": -3.96
+    },
+    {
+      "code": "601899",
+      "name": "紫金矿业",
+      "market": "SH",
+      "shares": 300,
+      "cost": 35.807,
+      "current": 31.27,
+      "pnl_pct": -12.67
+    }
+  ],
+  "rules": {
+    "max_position_pct": 65,
+    "max_single_stock_pct": 20,
+    "stop_loss_speculative": -10,
+    "stop_loss_investment": -20,
+    "min_cash_reserve_pct": 20
+  },
+  "notes": "中航沈飞已破-20%止损线待处理；中国移动占比34%超标需继续减仓"
+}
