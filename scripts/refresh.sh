@@ -32,7 +32,11 @@ if ! python3 "$SCRIPT_DIR/build_knowledge_base.py"; then
 fi
 
 log "[4/4] distill_recent.py"
-python3 "$SCRIPT_DIR/distill_recent.py" || log "  ⚠️ distill_recent 失败（可能因 claude CLI 不可用），continued with skeleton"
+if ! python3 "$SCRIPT_DIR/distill_recent.py"; then
+    log "  ⚠️ distill_recent 第一次失败，10 秒后重试…"
+    sleep 10
+    python3 "$SCRIPT_DIR/distill_recent.py" || log "  ⚠️ distill_recent 重试仍失败，使用兜底模板"
+fi
 
 # 更新 meta.json
 META="$ROOT/knowledge_base/meta.json"

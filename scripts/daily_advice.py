@@ -38,7 +38,7 @@ def run(name: str, script: Path, timeout: int) -> bool:
 
 def load_kb_inputs() -> dict:
     inputs = {}
-    for fname in ("evergreen.md", "recent.md", "summary.md"):
+    for fname in ("evergreen.md", "recent.md", "summary.md", "lessons.md"):
         p = KB / fname
         inputs[fname] = p.read_text(encoding="utf-8") if p.exists() else f"(missing: {fname})"
 
@@ -138,6 +138,12 @@ def build_prompt(today_str: str, tomorrow_str: str, inputs: dict, top30: dict) -
 
 ---
 
+# 输入 6：历史复盘教训（lessons.md，**生成清单前必读**）
+
+{inputs['lessons.md']}
+
+---
+
 # 输出要求（严格遵守）
 
 按下面模板输出 markdown。**TOP 10 表是核心，其它部分都尽量精简。**
@@ -167,10 +173,12 @@ def build_prompt(today_str: str, tomorrow_str: str, inputs: dict, top30: dict) -
 
 填表规则：
 - 当前价：直接从上表读
-- 买入价区间：
-  · 距 52w 高 > 15% 的（左侧）：当前价 ±2%（可入）
-  · 距 52w 高 5-15% 的：当前价 -3% ~ -8%（等回调）
-  · 距 52w 高 < 5% 的：写"暂不追"或当前价 -10% 以下
+- 买入价区间（**应用 lessons.md 教训**）：
+  · 距 52w 高 > 15% 的（左侧）：双档建仓——第一档 当前价 ±1%（即时建 50%），第二档 -5% 加仓 50%
+  · 距 52w 高 5-15% 的：当前价 -2% ~ -5%（不要超过 -5%，否则震荡上行市必然空仓）
+  · 距 52w 高 < 5% 的：写"暂不追"或"突破 52w 高 +1% 时追入"，**禁止给"-10% 等深回调"** —— 自相矛盾
+  · **硬约束**：买入下限不得低于"昨收 -3%" 且 不得低于"今日最低价 -1%"（避免推荐价脱离实际交易区间）
+  · **连涨疲劳**：候选股近 3 日累涨 >15% 的，主线评级降为"减仓/观察"，禁止"强买入"
 - 目标价：基于 PE 修复 / 52w 高 / 行业空间合理推断（不要写翻倍）
 - 止损价：投机仓 = 买入价 × 0.9（-10%）；投资仓 = 买入价 × 0.8（-20%）
 - 仓位：单票 ≤ 20%，10 只总和约 60-80%；高分红价值股 10-15%，科技/题材 5-10%

@@ -747,8 +747,8 @@ Step 5: 确认与跟进
 ## 9. Limitations
 
 ### 知识局限
-1. **知识截止**：2026年5月25日，不包含之后的市场信息
-2. **实时行情**：不提供实时股价、成交量等数据
+1. **知识库**：刘备教授文章 + 近期新闻每日 18:30 自动刷新（具体覆盖范围以 `knowledge_base/summary.md` 顶部 + `meta.json.last_updated` 为准）
+2. **实时行情**：每日 19:00 cron 扫描一次（5256 只 A 股 + 港股），盘中不更新
 3. **预测能力**：不预测具体点位、涨幅、跌幅
 4. **业绩预测**：不预测公司未来业绩
 
@@ -775,8 +775,11 @@ Step 5: 确认与跟进
 | `knowledge_base/knowledge_base.json` | 全量蒸馏 + 三级 level 标记（自动生成，每日刷新） |
 | `knowledge_base/meta.json` | 最后刷新时间，启动自检读取 |
 | `knowledge_base/inbox/` | 用户手工塞重大事件 markdown |
-| `scripts/refresh.sh` | 自动更新管道入口（cron + 手动） |
-| `scripts/daily_advice.py` | 调 `claude -p` 生成次日交易建议（19:00 cron 调用） |
+| `scripts/refresh.sh` | KB 自动更新管道入口（18:30 cron） |
+| `scripts/fetch_universe.py` | 全市场快照：5208 A股 + 港股核心，Sina 批量行情 API |
+| `scripts/hk_universe.txt` | 港股核心 50 强名单（季度 review） |
+| `scripts/score_universe.py` | 双轨评分：动态主线龙头 20 + 价值压舱 10 |
+| `scripts/daily_advice.py` | 编排扫描+评分+调 `claude -p` 生成次日 TOP 10 |
 | `scripts/push_wechat.py` | 推送到个人微信（wechatbot-webhook 协议） |
 | `scripts/daily_run.sh` | 编排 daily_advice + push_wechat |
 | `claude` CLI（in PATH） | distill_recent.py 通过 `claude -p` 蒸馏 recent.md |
@@ -835,23 +838,37 @@ crontab -e
 bash ~/.claude/skills/stock-helper/scripts/refresh.sh
 ```
 
-### 11.6 每日 19:00 次日建议推送（独立管道）
+### 11.6 每日 19:00 次日建议推送（独立管道，全市场动态扫描）
 
 - 18:30 cron 已跑完 `refresh.sh` → KB 是最新的
 - 19:00 cron 跑 `daily_run.sh`：
-  1. `daily_advice.py` 调 `claude -p` 读 evergreen + recent + summary + 最近 50 篇文章标题，生成次日交易建议 markdown 写到 `~/Documents/stock-helper/daily/YYYY-MM-DD.md`
-  2. `push_wechat.py` 按 wechatbot-webhook 协议（`POST {WECHATBOT_URL}?token={WECHATBOT_TOKEN}` body `{"to": "<昵称>", "data": {"content": "..."}}`）推送到个人微信，长文按 1800 字切段
+  1. `daily_advice.py` 内置编排：
+     - **fetch_universe.py**：拉 5208 A股 + 48 港股核心，Sina hq.sinajs.cn 批量行情（~35s）→ `knowledge_base/universe_quotes.json`
+     - **score_universe.py**：双轨评分
+       - **动态主线识别**：今日涨 >4% & 额 >1 亿的股按名称关键词聚类，**≥5 只共涨**的板块 = 当日主线（不依赖 recent.md 关键词，避免滞后）
+       - **主线龙头**：板块内按成交额排名加分（rank≤3=30，≤8=25），涨停 (>9.5%) 扣分（资金已锁难接力），涨 4-9% 满分
+       - **价值压舱**：高分红蓝筹白名单（招行/工建农/长电/神华/陕煤/茅台/腾讯/阿里/美团等），动量横盘 (-2~+3%) 最佳
+       - 输出 `top_main_line`(20) + `top_value`(10) 写到 `top30_candidates.json`
+  2. 调 `claude -p` 读 evergreen + recent + summary + 最近 50 篇文章 + 两个候选表，按 **"6 主线龙头 + 4 价值压舱"** 强制比例生成 TOP 10 → `~/Documents/stock-helper/daily/YYYY-MM-DD.md`
+  3. `push_wechat.py` 按 wechatbot-webhook 协议（`POST {WECHATBOT_URL}?token={WECHATBOT_TOKEN}` body `{"to": "<昵称>", "data": {"content": "..."}}`）推送到个人微信，长文按 1800 字切段
 - 必填环境变量（在 cron 用户的 shell 配置里 export）：
   ```
-  WECHATBOT_URL=http://<your-host>:3001/webhook/msg/v2
-  WECHATBOT_TOKEN=<your-token>
-  WECHATBOT_TO=<昵称或群名>
+  WECHATBOT_URL=http://127.0.0.1:3001/webhook/msg/v2   # 必须 127.0.0.1，VPN 环境下 localhost 会被劫持
+  WECHATBOT_TOKEN=<your-token>                          # 见 ~/.wechatbot_token，永不入库
+  WECHATBOT_TO=文件传输助手                              # 必须中文，不能写 filehelper
   ```
 - 试跑：`WECHATBOT_DRY_RUN=1 bash scripts/daily_run.sh`（只生成不推送）
 - cron 行（工作日 19:00；周末跳过）：
   ```
   0 19 * * 1-5 bash ~/.claude/skills/stock-helper/scripts/daily_run.sh >> ~/.claude/skills/stock-helper/daily.log 2>&1
   ```
+
+#### 网络环境约束（Sangfor VPN 已验证）
+
+- ❌ **所有 eastmoney 域名失败**：push2.eastmoney.com / em.* 全被 RST，akshare 的东财端点全部不可用
+- ❌ **sina vip.stock JSON 端点会 IP 封禁**：避免使用 `ak.stock_zh_a_spot()` 之外的 sina vip 接口
+- ✅ **可用**：`ak.stock_info_sh_name_code` / `sz_name_code`（代码列表）+ `hq.sinajs.cn/list=` 批量行情（30/批，加 Referer）
+- 港股代码列表无法从 eastmoney 拉取 → 维护静态 `hk_universe.txt`（季度 review）
 
 ---
 
@@ -873,15 +890,20 @@ stock-helper/
 │   ├── summary.md                 # 静态统计摘要
 │   ├── meta.json                  # last_updated / article_count
 │   ├── inbox/                     # 用户手工塞重大事件（被 recent.md 吸收）
-│   └── news_raw/YYYY-MM-DD/       # 当日新闻原始 HTML
+│   ├── news_raw/YYYY-MM-DD/       # 当日新闻原始 HTML
+│   ├── universe_quotes.json       # 全市场快照（5256 只，gitignore）
+│   └── top30_candidates.json      # 双轨评分输出（gitignore）
 └── scripts/
     ├── sources.yaml               # 新闻源配置
+    ├── hk_universe.txt            # 港股核心 50 强（季度 review）
     ├── build_knowledge_base.py    # 蒸馏脚本（修日期 + 加 level）
     ├── fetch_liubei.py            # fugay.com RSS 拉取
     ├── fetch_news.py              # 财经门户 / 监管公告抓取
+    ├── fetch_universe.py          # 全市场行情快照（Sina 批量 API）
+    ├── score_universe.py          # 双轨评分（主线 20 + 价值 10）
     ├── distill_recent.py          # claude -p 蒸馏 recent.md
     ├── refresh.sh                 # 18:30 编排脚本（KB 自动更新）
-    ├── daily_advice.py            # 调 claude -p 生成次日建议
+    ├── daily_advice.py            # 编排 fetch+score+claude → 次日 TOP 10
     ├── push_wechat.py             # wechatbot-webhook 推送
     └── daily_run.sh               # 19:00 编排脚本（生成+推送）
 ```

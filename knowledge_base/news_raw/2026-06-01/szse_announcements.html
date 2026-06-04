@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Hans">
+<head>
+    <meta charset="utf-8">
+<!--   <title>深交所主页</title>   -->
+<script>
+    var title = '<a href="./" class="CurrChnlCls">上市公司公告</a> ';
+    title = title.substring(title.indexOf('>')+1,title.indexOf('</'));
+    document.write('<title>深圳证券交易所-'+ title +'</title>')
+</script>
+<script>
+  if(location.protocol == 'https:'){
+    document.write('<link href="https://res.szse.cn/common/images/favicon.ico" rel="shortcut icon" type="image/x-icon" />');
+  }else{
+    document.write('<link href="http://res.static.szse.cn/common/images/favicon.ico" rel="shortcut icon" type="image/x-icon" />');
+  }
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=0" />
+<meta http-equiv="cache-control" content="max-age=0">
+<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="expires" content="0">
+<meta http-equiv="expires" content="Web, 26 Feb 1997 08:21:57 GMT">
+<meta http-equiv="pragma" content="no-cache">
+<meta name="author" content="www.szse.cn">
+<meta name="description" content="深交所官网">
+<meta name="keywords" content="深交所,深交所官网,深圳证券交易所,交易所,交易所官网,深圳证券交易所官网">
+<meta name="renderer" content=webkit>
+<meta name="X-UA-Compatible" content="IE=edge">
+<meta name="google" value="notranslate"> 
+<meta name="format-detection" content="telephone=no">
+<meta name="format-detection" content="email=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="screen-orientation" content="portrait">
+<meta name="full-screen" content="yes">
+<meta name="browermode" content="application">
+<meta name="x5-orientation" content="portrait">
+<meta name="HandheldFriendly" content="true">
+<script type="text/javascript">
+	var u = navigator.userAgent;
+	var isAndroid = u.indexOf('Android') > -1 || u.indexOf('Adr') > -1;//android终端
+
+	function addElementMeta(name,  content) {
+		var head = document.getElementsByTagName('head')[0];
+		var meta = document.createElement('meta');
+
+		meta.setAttribute('name', name);
+		meta.setAttribute('content', content);
+		head.appendChild(meta);
+	}
+	if(isAndroid) {
+		addElementMeta('x5-fullscreen', 'true');
+		addElementMeta('x5-page-mode', 'app');
+	}
+</script> 
+    <script>
+  (function () {
+    var _versionDate = new Date().getTime();
+    if (location.protocol == 'https:') {
+      var _path = 'https://res.szse.cn';
+    } else {
+      var _path = 'http://res.static.szse.cn';
+    }
+    // _path = _path.replace(".static.", ".");
+    //var _path = 'http://res.szse.cn';
+    //document.write( " <script src='" + _path + "/common/js/first.js?random=" + _versionDate + "'> <\/script> ");
+    var _host = 'http://www.szse.cn';
+    if (location.protocol == 'https:') {
+      _host = 'https://www.szse.cn';
+    }
+
+
+    var backDomain = 'http://www.sse.org.cn'
+    var reg = /([a-zA-Z0-9][-a-zA-Z0-9]{0,62})((\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+)\.?(:\d+)?/;
+    if (backDomain && window.location.host.match(reg)[2] === backDomain.match(reg)[2]) {
+      _host = 'http://www.sse.org.cn';
+      _path = 'http://res.static.sse.org.cn';
+      if (location.protocol == 'https:') {
+        _host = 'https://www.sse.org.cn';
+        _path = 'https://res.static.sse.org.cn';
+      }
+
+    }
+
+    _path = _path.replace(".static.", ".");
+
+    document.write(" <script src='" + _host + "/szsePath.js?random=" + _versionDate + "'> <\/script> "
+      + " <script src='" + _path + "/common/js/concatversion.js?random=" + _versionDate + "'> <\/script> ");
+  }());
+</script>
+
+<script>
+
+  function backDomainLinkSwitch(value, type) {
+    var _port = location.port ? (":" + location.port) : "";
+    var reg = /([a-zA-Z0-9][-a-zA-Z0-9]{0,62})((\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+)\.?(:\d+)?/;
+    var urlRegx = /(.*)(http:|https:)(\/\/)(([a-zA-Z0-9][-a-zA-Z0-9]{0,62})((\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+))\.?(:\d+)?(.*)/;
+
+    // html字符串替换
+    if (type == 'str') {
+      var strArr = value.split("=");
+      strArr = strArr.map(function (v) {
+        var host = reg.test(v) ? v.match(reg)[0] : null;
+        if (pathObj.szseHosts.indexOf(host) > -1) {
+          if (window.location.protocol == 'https:' && urlRegx.test(v)) {
+            v = v.replace(urlRegx, '$1https:$3$4' + _port + '$9');
+          };
+          if (pathObj.current_host === pathObj.back_host) {
+            v = v.replace(pathObj.main_host, pathObj.back_host);
+          }
+        }
+        return v
+      });
+      value = strArr.join("=");
+      return value;
+    }
+
+    // a标签地址替换
+    if (type === 'A') {
+      var eleA = document.querySelectorAll(value);
+      for (var i = 0; i < eleA.length; i++) {
+        var href = eleA[i].getAttribute("href");
+        var host = reg.test(href) ? href.match(reg)[0] : null;
+        if (href && pathObj.szseHosts.indexOf(host) > -1) {
+          if (window.location.protocol == 'https:') {
+            href = href.replace(urlRegx, '$1https:$3$4' + _port + '$9');
+          };
+          if (pathObj.current_host === pathObj.back_host) {
+            href = href.replace(pathObj.main_host, pathObj.back_host);
+          }
+          eleA[i].setAttribute('href', href);
+        }
+      }
+    }
+
+    // 单链接替换
+    if (type === "link") {
+      if (window.location.protocol == 'https:' && !!value) {
+        value = value.replace(urlRegx, '$1https:$3$4' + _port + '$9');
+      };
+      if (pathObj.current_host === pathObj.back_host) {
+        var host = reg.test(value) ? value.match(reg)[0] : null;
+        if (value && pathObj.szseHosts.indexOf(host) > -1) {
+          value = value.replace(pathObj.main_host, pathObj.back_host);
+        }
+      }
+      return value;
+    }
+
+    // 背景图地址更换
+    if (type === "background") {
+      var eleBg = document.querySelectorAll(value);
+      for (var i = 0; i < eleBg.length; i++) {
+        var href = eleBg[i].style.backgroundImage;
+        if (window.location.protocol == 'https:' && !!href) {
+          href = href.replace(urlRegx, '$1https:$3$4' + _port + '$9');
+        };
+        var host = reg.test(href) ? href.match(reg)[0] : null;
+        if (href && pathObj.szseHosts.indexOf(host) > -1) {
+          if (pathObj.current_host === pathObj.back_host) {
+            href = href.replace(pathObj.main_host, pathObj.back_host);
+          }
+          eleBg[i].style.backgroundImage = href;
+        }
+      }
+    }
+
+  }
+
+</script>
+
+<script>
+   if(document.cookie.indexOf('ft_language=1')>-1){
+    var style = document.createElement('style');
+    style.textContent='body{visibility:hidden;}';
+    document.head.appendChild(style);
+  }
+</script>
+<script>
+    addComCssFile()
+</script>
+    <script>
+        changeVertion('/modules/disclosure/css/disclosure.css', 'css');
+    </script>
+</head>
+	<body>
+		<script>
+  navMenuAJAX('/application/publicindex/header/index.html', '/application/publicindex/header/index.html', 'header', 'www');
+</script>
+<div class="g-locationnav">
+    <div class="banner-wrap">
+      <img src="http://res.static.szse.cn/common/images/legalrules-banner.jpg" />
+    </div>
+    <div class="g-container">
+      <div class="g-banner-txt">
+            <h2 class="hidden-xs">上市公司公告</h2>
+            <p>
+              <img src="http://res.static.szse.cn/common/icon/er-banneradr.png" />位置：<a href="../../" class="CurrChnlCls">信息披露</a>/<a href="../" class="CurrChnlCls">上市公司信息</a>/<a href="./" class="CurrChnlCls">上市公司公告</a>
+            </p>
+          </div>
+    </div>
+</div>
+	  	<div class="g-container-wrap">
+			<div class="g-container">
+				<div class="g-sidemenu">
+                                              
+
+<div class="menu-container">
+	<h2 class="title">信息披露</h2>
+	<div class="side-menu-container">
+		<ul class="side-menu-con">
+           <li class="level1 last" type="0" chnlcode="dealinstruct_report">
+
+			            <a href="../../../disclosure/memo/index.html">
+					<div>交易备忘
+					
+					</div>
+				</a>
+				
+	  </li>
+            <li class="level1" type="0" chnlcode="announcement">
+
+			        <a> 
+					<div>本所公告
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level2 last" type="0" chnlcode="general_news">
+
+			            <a href="../../../disclosure/notice/general/index.html">
+					<div>通知公告
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="tempsuspension_news">
+
+			            <a href="../../../disclosure/notice/temp/index.html">
+					<div>停复牌
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="ipocompany_news">
+
+			            <a href="../../../disclosure/notice/company/index.html">
+					<div>上市公司
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="bond_news">
+
+			            <a href="../../../disclosure/notice/bond/index.html">
+					<div>固收产品
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="fund_news">
+
+			            <a href="../../../disclosure/notice/fund/index.html">
+					<div>基金
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level1" type="0" chnlcode="dealinfo">
+
+			        <a> 
+					<div>交易信息
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level2 last" type="0" chnlcode="public_report">
+
+			            <a href="../../../disclosure/deal/public/index.html">
+					<div>竞价交易公开信息
+					
+					</div>
+				</a>
+				
+	  </li>
+            <li class="level2" type="0" chnlcode="block_report">
+
+			        <a> 
+					<div>大宗交易信息
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="equityBlock_report">
+
+			            <a href="../../../disclosure/deal/block/equity/index.html">
+					<div>权益类证券大宗交易
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="reitsBlock_report">
+
+			            <a href="../../../disclosure/deal/block/reits/index.html">
+					<div>不动产基金大宗交易
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="reitsBlockReal_report">
+
+			            <a href="../../../disclosure/deal/block/reitsReal/index.html">
+					<div>不动产基金大宗交易（实时）
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level2" type="0" chnlcode="InquiryTrading_report">
+
+			        <a> 
+					<div>询价交易信息
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="reitsInquiryTradingReal_report">
+
+			            <a href="../../../disclosure/deal/inquiry/reitsReal/index.html">
+					<div>不动产基金询价交易（逐笔）
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="reitsInquiryTrading_report">
+
+			            <a href="../../../disclosure/deal/inquiry/reits/index.html">
+					<div>不动产基金询价交易
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level2" type="0" chnlcode="xxpl-jyxx-kzz">
+
+			        <a> 
+					<div>可转债信息
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+            <li class="level3" type="0" chnlcode="xxpl-jyxx-kzz-bdxkzz_report">
+
+			        <a> 
+					<div>上市公司向不特定对象发行的可转债信息
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level4 last" type="0" chnlcode="xxpl-jyxx-kzz-ppcj_report">
+
+			            <a href="../../../disclosure/deal/conv/nd/mb/index.html">
+					<div>匹配成交交易公开信息
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level4 last" type="0" chnlcode="xxpl-jyxx-kzz-xscjph_report">
+
+			            <a href="../../../disclosure/deal/conv/nd/nbap/index.html">
+					<div>协商成交及盘后定价成交交易信息
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level4 last" type="0" chnlcode="xxpl-jyxx-kzz-xscjsb_report">
+
+			            <a href="../../../disclosure/deal/conv/nd/nbd/index.html">
+					<div>协商成交申报信息
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+           <li class="level3 last" type="0" chnlcode="xxpl-jyxx-kzz-dxkzz_report">
+
+			            <a href="../../../disclosure/deal/conv/dx/index.html">
+					<div>上市公司向特定对象发行的可转债信息
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+           <li class="level2 last" type="0" chnlcode="holder_report">
+
+			            <a href="../../../disclosure/deal/holder/index.html">
+					<div>权证持有人信息
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="qfii_report">
+
+			            <a href="../../../disclosure/deal/qfii/index.html">
+					<div>境外投资者持股信息
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="tenderoffer_news">
+
+			            <a href="../../../disclosure/deal/offer/index.html">
+					<div>要约收购
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="transfer_news">
+
+			            <a href="../../../disclosure/deal/transfer/index.html">
+					<div>非流通股转让
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="prefer_report">
+
+			            <a href="../../../disclosure/deal/prefer/index.html">
+					<div>优先股信息
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level1" type="0" chnlcode="margin">
+
+			        <a> 
+					<div>融资融券
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level2 last" type="0" chnlcode="business_news">
+
+			            <a href="../../../disclosure/margin/business/index.html">
+					<div>业务公告
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="object_report">
+
+			            <a href="../../../disclosure/margin/object/index.html">
+					<div>标的证券信息
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="securites_report">
+
+			            <a href="../../../disclosure/margin/securites/index.html">
+					<div>可充抵保证金证券
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="marginDeal_report">
+
+			            <a href="../../../disclosure/margin/margin/index.html">
+					<div>融资融券交易
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="margin_dygpdbwbl">
+
+			            <a href="../../../disclosure/margin/ratio/index.html">
+					<div>单一股票担保物比例
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="lendeddeal_report">
+
+			            <a href="../../../disclosure/margin/lended/index.html">
+					<div>证券出借
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="restrictedShares_report">
+
+			            <a href="../../../disclosure/margin/restrict/index.html">
+					<div>战略配售股份信息
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level1" type="0" chnlcode="supervision">
+
+			        <a> 
+					<div>监管信息公开
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level2 last" type="0" chnlcode="dynamic_news">
+
+			            <a href="../../../disclosure/supervision/dynamic/index.html">
+					<div>监管动态
+					
+					</div>
+				</a>
+				
+	  </li>
+            <li class="level2" type="0" chnlcode="measure_report">
+
+			        <a> 
+					<div>监管措施与纪律处分
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="superviseMeasure_report">
+
+			            <a href="../../../disclosure/supervision/measure/measure/index.html">
+					<div>监管措施
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="disciplinaryAction_report">
+
+			            <a href="../../../disclosure/supervision/measure/pushish/index.html">
+					<div>纪律处分
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="reviewDecision">
+
+			            <a href="../../../disclosure/supervision/measure/decision/index.html">
+					<div>复核决定
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level2" type="0" chnlcode="supervision_trading">
+
+			        <a> 
+					<div>交易监管
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="restrict_trading">
+
+			            <a href="../../../disclosure/supervision/transaction/restrict/index.html">
+					<div>限制交易与纪律处分
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="supervision_case">
+
+			            <a href="../../../disclosure/supervision/transaction/case/index.html">
+					<div>监管案例
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+           <li class="level2 last" type="0" chnlcode="sup_participant_new">
+
+			            <a href="../../../disclosure/supervision/members/index.html">
+					<div>会员及其他交易参与人监管
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="intermediarysupervise">
+
+			            <a href="../../../disclosure/supervision/supervise/index.html">
+					<div>中介机构监管
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="superviseIssuance_news">
+
+			            <a href="../../../disclosure/supervision/issue/index.html">
+					<div>发行承销监管
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="inquire_report">
+
+			            <a href="../../../disclosure/supervision/inquire/index.html">
+					<div>问询函件
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="progress_report">
+
+			            <a href="../../../disclosure/supervision/progress/index.html">
+					<div>业务办理进度
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="check_report">
+
+			            <a href="../../../disclosure/supervision/check/index.html">
+					<div>信息披露考评
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="promise_report">
+
+			            <a href="../../../disclosure/supervision/promise/index.html">
+					<div>承诺事项及履行情况
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="change_report">
+
+			            <a href="../../../disclosure/supervision/change/index.html">
+					<div>董监高人员股份变动
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="remarketapply_news">
+
+			            <a href="../../../disclosure/supervision/remarket/index.html">
+					<div>重新上市申请审核进度
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+           <li class="level1 active" chnlcode="listedinfo">
+
+			        <a class="dropup">
+					<div>上市公司信息
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level2 active last" chnlcode="listedNotice_disc">
+
+			            <a href="../../../disclosure/listed/notice/index.html">
+					<div>上市公司公告
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="zlhbsts_disc">
+
+			            <a href="../../../disclosure/listed/quality/index.html">
+					<div>质量回报双提升
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="fixed_disc">
+
+			            <a href="../../../disclosure/listed/fixed/index.html">
+					<div>定期报告
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="summary_report">
+
+			            <a href="../../../disclosure/listed/summary/index.html">
+					<div>当日公告摘要
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="riskwarning_disclosure">
+
+			            <a href="../../../disclosure/listed/warn/index.html">
+					<div>风险警示板
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="director">
+
+			            <a href="../../../disclosure/listed/director/index.html">
+					<div>独立董事信息库
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="secretary_report">
+
+			            <a href="../../../disclosure/listed/secretary/index.html">
+					<div>董事会秘书信息库
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="reduction_report">
+
+			            <a href="../../../disclosure/listed/reduction/index.html">
+					<div>限售股份解限与减持
+					
+					</div>
+				</a>
+				
+	  </li>
+            <li class="level2" type="0" chnlcode="credit_report">
+
+			        <a> 
+					<div>上市公司诚信档案
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="punishRecord_report">
+
+			            <a href="../../../disclosure/listed/credit/record/index.html">
+					<div>处罚与处分记录
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="agencyPunish_report">
+
+			            <a href="../../../disclosure/listed/credit/message/index.html">
+					<div>中介机构处罚与处分信息
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level2" type="0" chnlcode="suggestion_disc">
+
+			        <a> 
+					<div>持续督导意见
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="finance_disc">
+
+			            <a href="../../../disclosure/listed/suggestion/finance/index.html">
+					<div>财务顾问持续督导意见
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="sponsor_disc">
+
+			            <a href="../../../disclosure/listed/suggestion/sponsor/index.html">
+					<div>保荐机构持续督导意见
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+				</ul>
+	  </li>
+            <li class="level1" type="0" chnlcode="fundinfo">
+
+			        <a> 
+					<div>基金信息
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level2 last" type="0" chnlcode="fundinfoNotice_disc">
+
+			            <a href="../../../disclosure/fund/notice/index.html">
+					<div>基金公告
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="etfNotice_disc">
+
+			            <a href="../../../disclosure/fund/etf/index.html">
+					<div>ETF公告
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="openType_news">
+
+			            <a href="../../../disclosure/fund/open/index.html">
+					<div>开放式基金净值
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="fundinfoCurrency_report">
+
+			            <a href="../../../disclosure/fund/currency/index.html">
+					<div>申购赎回清单
+					
+					</div>
+				</a>
+				
+	  </li>
+            <li class="level2" type="0" chnlcode="fundinfo_jjtpt">
+
+			        <a> 
+					<div>基金通平台
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="jjtProduceList_report">
+
+			            <a href="../../../disclosure/fund/jjt/list/index.html">
+					<div>产品列表
+					
+					</div>
+				</a>
+				
+	  </li>
+            <li class="level3" type="0" chnlcode="jjtInfoTransferInfo">
+
+			        <a> 
+					<div>转让信息
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level4 last" type="0" chnlcode="jjtOfferTransfer_report">
+
+			            <a href="../../../disclosure/fund/jjt/transfer/offer/index.html">
+					<div>报价转让
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level4 last" type="0" chnlcode="jjtDealSurvey">
+
+			            <a href="../../../disclosure/fund/jjt/transfer/deal/index.html">
+					<div>成交概况
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level3" type="0" chnlcode="jjtOrgan">
+
+			        <a> 
+					<div>机构信息
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level4 last" type="0" chnlcode="jjtMarkersInfo_report">
+
+			            <a href="../../../disclosure/fund/jjt/organ/market/index.html">
+					<div>做市商信息
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level4 last" type="0" chnlcode="jjtSalesOrganInfo_report">
+
+			            <a href="../../../disclosure/fund/jjt/organ/sales/index.html">
+					<div>基金销售机构信息
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+				</ul>
+	  </li>
+				</ul>
+	  </li>
+            <li class="level1" type="0" chnlcode="bondinfo">
+
+			        <a> 
+					<div>债券信息
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level2 last" type="0" chnlcode="bondinfoNotice_disc">
+
+			            <a href="../../../disclosure/bond/notice/index.html">
+					<div>债券公告
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="11" chnlcode="chinaclear_link">
+
+			           <a href="http://www.chinaclear.cn/zdjs/zshenzhen/center_clist.shtml" target='_blank'>
+					<div>通用质押式回购质押券折算率
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="bondInquire_report">
+
+			            <a href="../../../disclosure/bond/inquire/index.html">
+					<div>问询函
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="bondMeasure_report">
+
+			            <a href="../../../disclosure/bond/measure/index.html">
+					<div>监管措施
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level2 last" type="0" chnlcode="punish_report">
+
+			            <a href="../../../disclosure/bond/punish/index.html">
+					<div>纪律处分
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+           <li class="level1 last" type="0" chnlcode="warrantinfo_disc">
+
+			            <a href="../../../disclosure/warrant/index.html">
+					<div>权证信息
+					
+					</div>
+				</a>
+				
+	  </li>
+            <li class="level1" type="0" chnlcode="innovate">
+
+			        <a> 
+					<div>会员创新产品
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+            <li class="level2" type="0" chnlcode="asset">
+
+			        <a> 
+					<div>资管计划份额转让
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="product_report">
+
+			            <a href="../../../disclosure/innovate/asset/product/index.html">
+					<div>产品信息
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="assetNotice_news">
+
+			            <a href="../../../disclosure/innovate/asset/notice/index.html">
+					<div>业务公告
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="assetDeal_report">
+
+			            <a href="../../../disclosure/innovate/asset/deal/index.html">
+					<div>成交信息
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level2" type="0" chnlcode="stockrepo_report">
+
+			        <a> 
+					<div>股票质押式回购交易
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="rate_report">
+
+			            <a href="../../../disclosure/innovate/stock/rate/index.html">
+					<div>平均质押率
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level3 last" type="0" chnlcode="stockrepoDeal_report">
+
+			            <a href="../../../disclosure/innovate/stock/message/index.html">
+					<div>交易信息
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level2" type="0" chnlcode="promiserepo_report">
+
+			        <a> 
+					<div>约定购回式证券交易
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="transactionInfo_report">
+
+			            <a href="../../../disclosure/innovate/promise/message/index.html">
+					<div>交易信息
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+            <li class="level2" type="0" chnlcode="pricerepo_report">
+
+			        <a> 
+					<div>质押式报价回购交易
+					
+					  <b class="caret"></b>
+					</div>
+				</a>
+				
+				<ul>
+           <li class="level3 last" type="0" chnlcode="pricerepoTransaction_report">
+
+			            <a href="../../../disclosure/innovate/price/message/index.html">
+					<div>交易信息
+					
+					</div>
+				</a>
+				
+	  </li>
+				</ul>
+	  </li>
+				</ul>
+	  </li>
+           <li class="level1 last" type="11" chnlcode="gudingshouyi_link">
+
+			           <a href="http://bond.szse.cn" target='_blank'>
+					<div>固定收益产品
+					
+					</div>
+				</a>
+				
+	  </li>
+           <li class="level1 last" type="11" chnlcode="crossBorder_link">
+
+			           <a href="http://bond.szse.cn/bayarea/index/index.html" target='_blank'>
+					<div>大湾区债券平台
+					
+					</div>
+				</a>
+				
+	  </li>
+		</ul>
+	</div>
+</div>
+
+
+					</div>
+					<div class="g-content">
+						<div class="g-conbox">
+						     <div class="disclosure-title g-contitle">
+    <h4 class="title"></h4>
+</div>
+<div class="disclosure-query" id="query" style="display:block">
+</div>
+<div id="disclosure-table"></div>
+<div class="no-responsibility">
+    <p>
+        免责声明：本系统竭力保证所提供的证券市场信息准确可靠，但并不担保（无论是明示、默示、法定或其他形式）其准确性和完整性。任何使用方不得就全部或部分使用中的证券市场信息作为依据并对由此而引起的任何损失向本所提出索赔。
+    </p>
+</div>
+						</div>
+					</div>
+			</div>
+		</div>
+		<script>
+  changeVertion('/common/js/toggleBig5.js', 'js');
+  navMenuAJAX('/application/publicindex/footer/index.html','/application/publicindex/footer/index.html', 'footer','www');
+  addComJsFile();
+</script>
+		<script>
+   if (!isDevModel) {
+        changeVertion('/modules/disclosure/js/concatDisc.js','js');
+    } else {
+        changeVertion('/modules/disclosure/js/disclosure_common.js','js');
+        changeVertion('/modules/disclosure/js/selectexsearch.js','js');
+        changeVertion('/modules/disclosure/js/disclosure_query.js','js');
+        changeVertion('/modules/disclosure/js/selectedtips.js','js');
+        changeVertion('/modules/disclosure/js/disclosure_table.js','js');
+    }
+</script>
+               <script>
+                  changeVertion('/modules/disclosure/js/modules/listedAnnoun.js','js');  	
+               </script>
+					
+	</body>
+</html>

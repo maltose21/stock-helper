@@ -1,0 +1,58 @@
+name: push-to-feishu
+
+# 触发：本地 cron 生成 daily/*.md 后 git push，Actions 转发到飞书
+# 避免本机 aTrust 拦 open.feishu.cn 的问题
+on:
+  push:
+    paths:
+      - 'daily/**.md'
+  workflow_dispatch:
+    inputs:
+      file:
+        description: 'Markdown 文件相对路径 (如 daily/2026-05-28.md)'
+        required: false
+        default: ''
+
+jobs:
+  forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Determine target files
+        id: files
+        env:
+          MANUAL_FILE: ${{ github.event.inputs.file }}
+        run: |
+          set -e
+          if [ -n "$MANUAL_FILE" ]; then
+            echo "files=$MANUAL_FILE" >> $GITHUB_OUTPUT
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'daily/*.md' | tr '\n' ' ')
+            echo "Changed: $CHANGED"
+            echo "files=$CHANGED" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push each new daily file to Feishu
+        if: steps.files.outputs.files != ''
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          FILES: ${{ steps.files.outputs.files }}
+        run: |
+          set -e
+          for f in $FILES; do
+            if [ -f "$f" ]; then
+              echo "→ pushing $f"
+              python3 scripts/push_feishu.py "$f"
+            else
+              echo "⚠️  $f not found, skip"
+            fi
+          done
