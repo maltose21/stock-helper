@@ -1,0 +1,14 @@
+daily/2026-08-25.md
+  h_31c54a45c69b64 1-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "94a19a46862c0264b2c9144518b14c8e175f51d7",
+  "prompts": {},
+  "humans": {
+    "h_31c54a45c69b64": {
+      "author": "maltose21 <maltose21@users.noreply.github.com>"
+    }
+  }
+}
